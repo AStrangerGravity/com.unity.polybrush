@@ -218,7 +218,9 @@ namespace UnityEditor.Polybrush
 
                     if (isColorSwatch)
                     {
-                        GUI.backgroundColor = swatch.colorValue;
+                        Color c = swatch.colorValue;
+                        c.a = 1;
+                        GUI.backgroundColor = c;
 
                         if (m_Drag.status != DragState.Status.Dragging || i != m_Drag.sourceIndex)
                         {
@@ -312,7 +314,9 @@ namespace UnityEditor.Polybrush
 			if(m_Drag.status == DragState.Status.Dragging && m_Drag.swatch != null)
 			{
 				Rect r = new Rect(e.mousePosition.x + m_Drag.offset.x, e.mousePosition.y + m_Drag.offset.y, swatchSize, swatchSize);
-				GUI.backgroundColor = m_Drag.swatch.colorValue;
+                Color c = m_Drag.swatch.colorValue;
+                c.a = 1;
+				GUI.backgroundColor = c;
                 GUI.Label(r, "", s_StyleForColorSwatch);
 				GUI.backgroundColor = Color.white;
 
