@@ -2,6 +2,14 @@
 using System.IO;
 using UnityEditor;
 
+// (ASG): TODO: These changes don't function properly with the "Override Mesh" option.
+//        For some reason, in that mode, the duplicated DeepCopy Polybrush-****** mesh is not properly set on this component.
+//        Instead the original mesh is set, which causes the strokes to actually apply to the original mesh, clobbering it
+//        in the assets folder.
+//        This is only a problem that needs solving if we need painting on skeletal meshes, so let's defer until then.
+//        Notes:
+//            -
+
 namespace UnityEngine.Polybrush
 {
     /// <summary>
