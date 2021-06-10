@@ -3,12 +3,12 @@ using System.IO;
 using UnityEditor;
 
 // (ASG): TODO: These changes don't function properly with the "Override Mesh" option.
-//        For some reason, in that mode, the duplicated DeepCopy Polybrush-****** mesh is not properly set on this component.
-//        Instead the original mesh is set, which causes the strokes to actually apply to the original mesh, clobbering it
-//        in the assets folder.
-//        This is only a problem that needs solving if we need painting on skeletal meshes, so let's defer until then.
-//        Notes:
-//            -
+//          When hovering, then clicking (painting) and the un-hovering, the Polybrush-*** mesh is deleted. This happens
+//          during the normal EditableObject.Revert() graphicsmesh call (this delete is important, because it is used for IsValid).
+//          But I think the graphicsmesh should be set to a *new* mesh after painting, to reflect the new hover state.
+//          This doesn't seem to be happening.
+//          This means we can't use this system with skeletal meshes.
+//          A new EditableObject is created for every change (see "GetOrCreateBrushTarget"). One is created as well for hovers.
 
 namespace UnityEngine.Polybrush
 {
