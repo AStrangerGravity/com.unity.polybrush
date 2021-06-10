@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using UnityEditor;
 
 namespace UnityEngine.Polybrush
@@ -68,9 +69,10 @@ namespace UnityEngine.Polybrush
             }
         }
 
+        // (ASG) Changed to storage, so it stores this data on an asset.
         //seriazlied polymesh stored on the component
         [SerializeField]
-        PolyMesh m_PolyMesh;
+        PolybrushStorage m_PolyMesh;
 
         //mesh ref from the skinmesh asset, if any
         [SerializeField]
@@ -92,6 +94,12 @@ namespace UnityEngine.Polybrush
             get { return m_ComponentsCache; }
         }
 
+        // (ASG)
+        internal PolybrushStorage storage
+        {
+            get { return m_PolyMesh; }
+        }
+
         /// <summary>
         /// Returns true if there are applied modification on this mesh.
         /// </summary>
@@ -100,9 +108,9 @@ namespace UnityEngine.Polybrush
             get
             {
                 if (m_ComponentsCache.MeshFilter)
-                    return m_PolyMesh.ToUnityMesh() != m_ComponentsCache.MeshFilter.sharedMesh;
+                    return m_PolyMesh.PolyMesh.ToUnityMesh() != m_ComponentsCache.MeshFilter.sharedMesh;
                 if (m_ComponentsCache.SkinnedMeshRenderer)
-                    return m_PolyMesh.ToUnityMesh() != m_ComponentsCache.SkinnedMeshRenderer.sharedMesh;
+                    return m_PolyMesh.PolyMesh.ToUnityMesh() != m_ComponentsCache.SkinnedMeshRenderer.sharedMesh;
                 return false;
             }
         }
@@ -112,7 +120,7 @@ namespace UnityEngine.Polybrush
             get
             {
                 if (m_ComponentsCache.MeshRenderer != null && m_ComponentsCache.MeshRenderer.additionalVertexStreams != null)
-                    return m_ComponentsCache.MeshRenderer.additionalVertexStreams == m_PolyMesh.ToUnityMesh();
+                    return m_ComponentsCache.MeshRenderer.additionalVertexStreams == m_PolyMesh.PolyMesh.ToUnityMesh();
                 return false;
             }
         }
@@ -122,7 +130,12 @@ namespace UnityEngine.Polybrush
         {
             get
             {
-                return m_PolyMesh;
+                if (m_PolyMesh == null)
+                {
+                    return null;
+                }
+
+                return m_PolyMesh.PolyMesh;
             }
         }
 
@@ -133,7 +146,7 @@ namespace UnityEngine.Polybrush
             {
                 if (m_PolyMesh != null)
                 {
-                    return m_PolyMesh.ToUnityMesh();
+                    return m_PolyMesh.PolyMesh.ToUnityMesh();
                 }
                 else
                 {
@@ -202,9 +215,6 @@ namespace UnityEngine.Polybrush
             if (!m_ComponentsCache.IsValid())
                 m_ComponentsCache = new MeshComponentsCache(gameObject);
 
-            if (m_PolyMesh == null)
-                m_PolyMesh = new PolyMesh();
-
             Mesh mesh = null;
 
             if (m_ComponentsCache.MeshFilter != null)
@@ -216,12 +226,35 @@ namespace UnityEngine.Polybrush
             else if (m_ComponentsCache.SkinnedMeshRenderer != null)
                 mesh = m_ComponentsCache.SkinnedMeshRenderer.sharedMesh;
 
+            EnsureStorageCreated();
+
             if (!polyMesh.IsValid() && mesh)
                 SetMesh(mesh);
             else if (polyMesh.IsValid())
                 SetMesh(polyMesh.ToUnityMesh());
 
             m_Initialized = true;
+        }
+
+        private void EnsureStorageCreated()
+        {
+            if (m_PolyMesh == null)
+            {
+                string id = GlobalObjectId.GetGlobalObjectIdSlow(m_ComponentsCache.MeshFilter).ToString();
+                string directory = "Assets/Plugins/PolybrushData/";
+                string path = directory + id + ".asset";
+                new DirectoryInfo(directory).Create(); // Ensure it's createed
+
+                PolybrushStorage asset = AssetDatabase.LoadAssetAtPath<PolybrushStorage>(path);
+                if (asset == null)
+                {
+                    asset = ScriptableObject.CreateInstance<PolybrushStorage>();
+                    asset.PolyMesh = new PolyMesh();
+                    AssetDatabase.CreateAsset(asset, path);
+                }
+
+                m_PolyMesh = asset;
+            }
         }
 
         /// <summary>
@@ -233,13 +266,35 @@ namespace UnityEngine.Polybrush
             if (unityMesh == null)
                 return;
 
-            m_PolyMesh.InitializeWithUnityMesh(unityMesh);
+            // If the mesh is not within an asset, save it into the storage.
+            if (!AssetDatabase.Contains(unityMesh))
+            {
+                EnsureStorageCreated();
+
+                Debug.Log($"Extracting Polymesh [{unityMesh.name}] to Assets folder");
+
+                var subassets = AssetDatabase.LoadAllAssetRepresentationsAtPath(AssetDatabase.GetAssetPath(storage));
+                if (subassets != null) {
+                    foreach (Object a in subassets)
+                    {
+                        if (a != null)
+                        {
+                            AssetDatabase.RemoveObjectFromAsset(a);
+                        }
+                    }
+                }
+
+                AssetDatabase.AddObjectToAsset(unityMesh, m_PolyMesh);
+                AssetDatabase.SaveAssets();
+            }
+
+            m_PolyMesh.PolyMesh.InitializeWithUnityMesh(unityMesh);
             SynchronizeWithMeshRenderer();
         }
 
         internal void SetAdditionalVertexStreams(Mesh vertexStreams)
         {
-            m_PolyMesh.ApplyAttributesFromUnityMesh(vertexStreams, MeshChannelUtility.ToMask(vertexStreams));
+            m_PolyMesh.PolyMesh.ApplyAttributesFromUnityMesh(vertexStreams, MeshChannelUtility.ToMask(vertexStreams));
             SynchronizeWithMeshRenderer();
         }
 
@@ -251,7 +306,7 @@ namespace UnityEngine.Polybrush
             if (m_PolyMesh == null)
                 return;
 
-            m_PolyMesh.UpdateMeshFromData();
+            m_PolyMesh.PolyMesh.UpdateMeshFromData();
 
             if (m_ComponentsCache.SkinnedMeshRenderer != null && skinMeshRef != null)
                 UpdateSkinMesh();
@@ -264,8 +319,9 @@ namespace UnityEngine.Polybrush
                     if (!Application.isPlaying)
                         Undo.RecordObject(m_ComponentsCache.MeshFilter, "Assign new mesh to MeshFilter");
 #endif
-                    m_ComponentsCache.MeshFilter.sharedMesh = m_PolyMesh.ToUnityMesh();
+                    m_ComponentsCache.MeshFilter.sharedMesh = m_PolyMesh.PolyMesh.ToUnityMesh();
                 }
+
                 SetAdditionalVertexStreamsOnRenderer(null);
             }
             else
@@ -279,7 +335,7 @@ namespace UnityEngine.Polybrush
                     return;
                 }
 
-                SetAdditionalVertexStreamsOnRenderer(m_PolyMesh.ToUnityMesh());
+                SetAdditionalVertexStreamsOnRenderer(m_PolyMesh.PolyMesh.ToUnityMesh());
             }
         }
 
@@ -298,6 +354,7 @@ namespace UnityEngine.Polybrush
                         return false;
                 }
             }
+
             return true;
         }
 
@@ -309,7 +366,7 @@ namespace UnityEngine.Polybrush
         {
             Mesh mesh = skinMeshRef;
 
-            Mesh generatedMesh = m_PolyMesh.ToUnityMesh();
+            Mesh generatedMesh = m_PolyMesh.PolyMesh.ToUnityMesh();
             generatedMesh.boneWeights = mesh.boneWeights;
             generatedMesh.bindposes = mesh.bindposes;
 #if UNITY_EDITOR
@@ -355,11 +412,12 @@ namespace UnityEngine.Polybrush
 #endif
                     m_ComponentsCache.MeshFilter.sharedMesh = m_OriginalMeshObject;
                 }
-                SetMesh(m_PolyMesh.ToUnityMesh());
+
+                SetMesh(m_PolyMesh.PolyMesh.ToUnityMesh());
             }
             else if (mode == Mode.Mesh)
             {
-                SetMesh(m_PolyMesh.ToUnityMesh());
+                SetMesh(m_PolyMesh.PolyMesh.ToUnityMesh());
             }
         }
 

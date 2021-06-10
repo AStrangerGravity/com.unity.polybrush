@@ -45,13 +45,13 @@ namespace UnityEditor.Polybrush
                 }
                 else
                 {
-                    Undo.RegisterCompleteObjectUndo(brushTarget.editableObject.polybrushMesh, UndoMessage);
+                    Undo.RegisterCompleteObjectUndo(brushTarget.editableObject.polybrushMesh.storage, UndoMessage);
                     modifiedMeshes.Add(brushTarget.editableObject.polybrushMesh.polyMesh);
                 }
             }
             else
             {
-                Undo.RegisterCompleteObjectUndo(brushTarget.editableObject.polybrushMesh, UndoMessage);
+                Undo.RegisterCompleteObjectUndo(brushTarget.editableObject.polybrushMesh.storage, UndoMessage);
                 modifiedMeshes.Add(brushTarget.editableObject.polybrushMesh.polyMesh);
             }
 
