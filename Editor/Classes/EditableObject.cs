@@ -493,7 +493,7 @@ namespace UnityEditor.Polybrush
                 return;
 
             if (graphicsMesh != null)
-                GameObject.DestroyImmediate(graphicsMesh);
+                GameObject.DestroyImmediate(graphicsMesh, true);
 
             PrefabUtility.RecordPrefabInstancePropertyModifications(polybrushMesh);
         }
