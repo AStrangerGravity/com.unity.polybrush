@@ -1,6 +1,9 @@
 ﻿using System;
 using System.IO;
+#if UNITY_EDITOR
 using UnityEditor;
+
+#endif
 
 // (ASG): TODO: These changes don't function properly with the "Override Mesh" option.
 //          When hovering, then clicking (painting) and the un-hovering, the Polybrush-*** mesh is deleted. This happens
@@ -28,7 +31,8 @@ namespace UnityEngine.Polybrush
 
         internal static class Styles
         {
-            internal const string k_VertexMismatchStringFormat = "Warning! The GameObject \"{0}\" cannot apply it's 'Additional Vertex Streams' mesh, because it's base mesh has changed and has a different vertex count.";
+            internal const string k_VertexMismatchStringFormat =
+                "Warning! The GameObject \"{0}\" cannot apply it's 'Additional Vertex Streams' mesh, because it's base mesh has changed and has a different vertex count.";
         }
 
         internal enum ObjectType
@@ -127,7 +131,8 @@ namespace UnityEngine.Polybrush
         {
             get
             {
-                if (m_ComponentsCache.MeshRenderer != null && m_ComponentsCache.MeshRenderer.additionalVertexStreams != null)
+                if (m_ComponentsCache.MeshRenderer != null &&
+                    m_ComponentsCache.MeshRenderer.additionalVertexStreams != null)
                     return m_ComponentsCache.MeshRenderer.additionalVertexStreams == m_PolyMesh.PolyMesh.ToUnityMesh();
                 return false;
             }
@@ -184,14 +189,8 @@ namespace UnityEngine.Polybrush
 
         internal Mesh skinMeshRef
         {
-            get
-            {
-                return m_SkinMeshRef;
-            }
-            set
-            {
-                m_SkinMeshRef = value;
-            }
+            get { return m_SkinMeshRef; }
+            set { m_SkinMeshRef = value; }
         }
 
         internal Mesh sourceMesh
@@ -248,6 +247,7 @@ namespace UnityEngine.Polybrush
         {
             if (m_PolyMesh == null)
             {
+#if UNITY_EDITOR
                 string id = GlobalObjectId.GetGlobalObjectIdSlow(m_ComponentsCache.MeshFilter).ToString();
                 string directory = "Assets/Plugins/PolybrushData/";
                 string path = directory + id + ".asset";
@@ -262,6 +262,12 @@ namespace UnityEngine.Polybrush
                 }
 
                 m_PolyMesh = asset;
+#else
+                // Create empty storage asset.
+                PolybrushStorage asset = ScriptableObject.CreateInstance<PolybrushStorage>();
+                asset.PolyMesh = new PolyMesh();
+                m_PolyMesh = asset;
+#endif
             }
         }
 
@@ -274,6 +280,7 @@ namespace UnityEngine.Polybrush
             if (unityMesh == null)
                 return;
 
+            #if UNITY_EDITOR
             // If the mesh is not within an asset, save it into the storage.
             if (!AssetDatabase.Contains(unityMesh))
             {
@@ -282,7 +289,8 @@ namespace UnityEngine.Polybrush
                 Debug.Log($"Extracting Polymesh [{unityMesh.name}] to Assets folder");
 
                 var subassets = AssetDatabase.LoadAllAssetRepresentationsAtPath(AssetDatabase.GetAssetPath(storage));
-                if (subassets != null) {
+                if (subassets != null)
+                {
                     foreach (Object a in subassets)
                     {
                         if (a != null)
@@ -295,6 +303,7 @@ namespace UnityEngine.Polybrush
                 AssetDatabase.AddObjectToAsset(unityMesh, m_PolyMesh);
                 AssetDatabase.SaveAssets();
             }
+            #endif
 
             m_PolyMesh.PolyMesh.InitializeWithUnityMesh(unityMesh);
             SynchronizeWithMeshRenderer();
@@ -447,7 +456,8 @@ namespace UnityEngine.Polybrush
             {
                 // Re-assign source mesh only if it has changed.
                 // Likely to happen with ProBuilder.
-                if (type == ObjectType.Mesh && componentsCache.MeshFilter !=null && sourceMesh == componentsCache.MeshFilter.sharedMesh)
+                if (type == ObjectType.Mesh && componentsCache.MeshFilter != null &&
+                    sourceMesh == componentsCache.MeshFilter.sharedMesh)
                     return;
 
                 SetMesh(sourceMesh);
