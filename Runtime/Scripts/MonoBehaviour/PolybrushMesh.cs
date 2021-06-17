@@ -454,6 +454,11 @@ namespace UnityEngine.Polybrush
                 !Application.isPlaying &&
                 Time.frameCount > 0)
             {
+                if (mode == Mode.AdditionalVertexStream)
+                {
+                    RemoveAdditionalVertexStreams();
+                }
+
                 // Re-assign source mesh only if it has changed.
                 // Likely to happen with ProBuilder.
                 if (type == ObjectType.Mesh && componentsCache.MeshFilter != null &&
